@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#6b7c6e">
+<title>Starling · 椋鸟</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<script src="vendor/pdf-lib.min.js" defer></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500&family=Noto+Serif+SC:wght@400;600&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f7f6f3; --surface: #ffffff; --border: #e8e6e1;
+    --text: #2c2a25; --muted: #8a8780;
+    --accent: #6b7c6e; --accent-hover: #5a6b5d; --accent-light: #e8ede9;
+    --slider-track: #d9d7d2; --slider-thumb: #6b7c6e;
+    --shadow: 0 1px 3px rgba(0,0,0,0.06);
+    --highlight: rgba(107,124,110,0.08);
+    --warn-bg: rgba(181,118,44,0.08); --warn-text: #b5762c;
+    --ok-bg: rgba(74,124,89,0.08); --ok-text: #4a7c59;
+    --content-font-size: 14px;
+    --serif: 'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', serif;
+    --sans: 'Noto Sans SC', system-ui, sans-serif;
+  }
+  body.dark {
+    --bg: #1c1b19; --surface: #242220; --border: #37342f;
+    --text: #d8d3c8; --muted: #8a8479;
+    --accent: #8fa390; --accent-hover: #a5b8a8; --accent-light: #2d3330;
+    --slider-track: #45423d; --slider-thumb: #8fa390;
+    --shadow: 0 1px 3px rgba(0,0,0,0.2);
+    --highlight: rgba(143,163,144,0.12);
+  }
+
+  body {
+    font-family: var(--sans); background: var(--bg); color: var(--text);
+    font-size: 14px; min-height: 100vh; display: flex; flex-direction: column;
+    transition: background 0.2s, color 0.2s;
+  }
+
+  /* === HEADER === */
+  header {
+    padding: 12px 24px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--surface); flex-shrink: 0;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand img { width: 24px; height: 24px; border-radius: 4px; }
+  .brand h1 { font-size: 15px; font-weight: 500; }
+  .brand h1 span { color: var(--muted); font-weight: 300; margin-left: 6px; font-size: 12px; }
+
+  .header-right { display: flex; align-items: center; gap: 8px; }
+
+  /* === TABS === */
+  .tab-bar {
+    display: flex; gap: 0; background: var(--surface);
+    border-bottom: 1px solid var(--border); padding: 0 24px; flex-shrink: 0;
+  }
+  .tab-bar button {
+    font-family: var(--sans); font-size: 13px; font-weight: 500;
+    padding: 10px 4px; margin-right: 24px; border: none; background: none;
+    color: var(--muted); border-bottom: 2px solid transparent; cursor: pointer;
+  }
+  .tab-bar button:hover { color: var(--text); }
+  .tab-bar button.active { color: var(--text); border-bottom-color: var(--accent); }
+
+  /* === COMMON === */
+  button {
+    font-family: var(--sans); font-size: 13px; padding: 6px 14px;
+    border-radius: 6px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text); cursor: pointer; transition: all 0.15s;
+  }
+  button:hover { background: var(--highlight); }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 500; }
+  button.primary:hover { background: var(--accent-hover); }
+  button:disabled { opacity: 0.4; cursor: default; }
+
+  .tab-content { flex: 1; display: none; flex-direction: column; overflow: hidden; }
+  .tab-content.active { display: flex; }
+
+  .toast {
+    position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+    background: var(--text); color: var(--bg); padding: 8px 20px; border-radius: 8px;
+    font-size: 13px; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 100;
+  }
+  .toast.show { opacity: 1; }
+  .loading-bar { position: fixed; top: 0; left: 0; height: 2px; background: var(--accent); transition: width 0.3s; z-index: 200; }
+
+  /* === PDF TUNER === */
+  .pdf-workspace { flex: 1; display: flex; flex-direction: column; }
+  .pdf-landing { flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px; }
+  .pdf-landing.hidden { display: none; }
+  .drop-zone {
+    border: 2px dashed var(--border); border-radius: 12px;
+    padding: 60px 40px; text-align: center; cursor: pointer;
+    transition: all 0.2s; max-width: 480px; width: 100%;
+  }
+  .drop-zone:hover, .drop-zone.dragover { border-color: var(--accent); background: var(--accent-light); }
+  .drop-zone p { color: var(--muted); margin-top: 8px; font-size: 13px; }
+  .drop-zone .dzlabel { font-size: 15px; color: var(--text); }
+
+  .pdf-editor { flex: 1; display: none; flex-direction: column; }
+  .pdf-editor.active { display: flex; }
+
+  .canvas-area {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    overflow: auto; padding: 20px; gap: 16px; background: var(--bg);
+  }
+  .canvas-wrap { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
+  .canvas-wrap .clabel { font-size: 11px; color: var(--muted); letter-spacing: 0.04em; }
+  canvas {
+    max-width: 100%; max-height: calc(100vh - 300px);
+    object-fit: contain; background: white; box-shadow: var(--shadow);
+  }
+
+  .pdf-controls { border-top: 1px solid var(--border); background: var(--surface); padding: 12px 24px; flex-shrink: 0; }
+  .ctrl-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .ctrl-row + .ctrl-row { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+  .page-nav { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  .page-nav button { width: 30px; height: 30px; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+  .page-nav .pinfo { font-size: 13px; color: var(--muted); min-width: 60px; text-align: center; font-variant-numeric: tabular-nums; }
+
+  .sliders { display: flex; gap: 14px; flex: 1; align-items: center; flex-wrap: wrap; }
+  .sg { display: flex; align-items: center; gap: 5px; }
+  .sg label { font-size: 12px; color: var(--muted); min-width: 32px; text-align: right; flex-shrink: 0; }
+  .sg input[type="range"] {
+    -webkit-appearance: none; appearance: none; width: 90px; height: 4px;
+    background: var(--slider-track); border-radius: 2px; outline: none;
+  }
+  .sg input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%;
+    background: var(--slider-thumb); cursor: pointer; border: 2px solid var(--surface);
+    box-shadow: 0 0 0 1px var(--slider-track);
+  }
+  .sg .sv { font-size: 11px; color: var(--text); min-width: 28px; font-variant-numeric: tabular-nums; }
+  .ctrl-actions { display: flex; gap: 8px; flex-shrink: 0; align-items: center; }
+  .scope-toggle { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); }
+  .scope-toggle input { accent-color: var(--accent); }
+  .slabel { font-size: 11px; color: var(--muted); letter-spacing: 0.04em; margin-right: 2px; flex-shrink: 0; font-weight: 500; }
+  .deskew-info { font-size: 12px; color: var(--muted); }
+
+  /* === OCR PANELS === */
+  .ocr-section { flex: 1; display: flex; flex-direction: column; padding: 24px; overflow: auto; }
+  .ocr-section h2 { font-size: 17px; font-weight: 600; margin-bottom: 4px; }
+  .ocr-section .sub { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+  .ocr-topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
+  .save-status { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  .panels { display: flex; gap: 16px; flex: 1; min-height: 0; }
+  .panel {
+    flex: 1; display: flex; flex-direction: column;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; overflow: hidden; min-height: 280px;
+  }
+  .panel-hd {
+    padding: 8px 12px; font-size: 12px; font-weight: 500; color: var(--muted);
+    border-bottom: 1px solid var(--border); display: flex;
+    justify-content: space-between; align-items: center;
+  }
+  .panel-hd span:last-child { display: flex; gap: 6px; }
+  textarea {
+    flex: 1; border: none; resize: none; padding: 12px;
+    font-size: var(--content-font-size); line-height: 1.7;
+    font-family: var(--serif); outline: none; background: transparent; color: var(--text);
+  }
+  textarea::placeholder { color: var(--slider-track); }
+
+  #ocrOutput {
+    flex: 1; padding: 12px 14px; font-size: var(--content-font-size);
+    overflow-y: auto; background: transparent; color: var(--text);
+    cursor: text; outline: none; font-family: var(--serif); line-height: 1.7;
+  }
+  #ocrOutput:focus { box-shadow: inset 0 0 0 2px var(--border); }
+  #ocrOutput p { text-indent: 2em; margin: 0 0 16px; padding: 2px 4px; margin-left: -4px; border-radius: 4px; transition: background 0.15s; }
+  #ocrOutput p.active-line { background: var(--highlight); }
+  #ocrOutput .placeholder { text-indent: 0; color: var(--slider-track); }
+
+  .ocr-mid { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; flex-shrink: 0; padding: 0 4px; }
+  .copy-hint { font-size: 12px; color: var(--muted); }
+  .copy-hint.success { color: var(--ok-text); }
+
+  /* === FOOTNOTE === */
+  .fn-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 12px 0; font-size: 13px; color: var(--muted); }
+  .fn-controls label { display: flex; align-items: center; gap: 5px; }
+  .fn-controls input[type="text"] { width: 50px; padding: 5px 7px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); font-family: var(--sans); font-size: 13px; }
+  .fn-controls select { padding: 5px 7px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); font-family: var(--sans); font-size: 13px; }
+  .fn-controls input:disabled, .fn-controls select:disabled { opacity: 0.4; }
+
+  #fnOutput { padding: 12px 14px; font-size: var(--content-font-size); min-height: 160px; max-height: 400px; overflow-y: auto; color: var(--text); white-space: pre-wrap; outline: none; cursor: text; font-family: var(--serif); }
+
+  .fn-warning { font-size: 12px; color: var(--warn-text); margin: 8px 0 0; padding: 8px 12px; background: var(--warn-bg); border-radius: 6px; display: none; }
+  .fn-warning.show { display: block; }
+  .fn-preview { display: none; margin: 8px 0 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; font-size: 13px; }
+  .fn-preview.show { display: block; }
+  .fn-preview-summary { padding: 8px 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+  .fn-preview-summary.ok { background: var(--ok-bg); color: var(--ok-text); }
+  .fn-preview-summary.warn { background: var(--warn-bg); color: var(--warn-text); }
+  .fn-preview-toggle { color: var(--muted); font-size: 12px; }
+  .fn-preview-detail { display: none; max-height: 280px; overflow-y: auto; border-top: 1px solid var(--border); }
+  .fn-preview.expanded .fn-preview-detail { display: block; }
+  .fn-preview table { width: 100%; border-collapse: collapse; }
+  .fn-preview th, .fn-preview td { text-align: left; padding: 5px 10px; border-bottom: 1px solid var(--border); }
+  .fn-preview th { color: var(--muted); font-weight: 600; position: sticky; top: 0; background: var(--surface); }
+  .fn-preview tr.flagged td { background: var(--warn-bg); }
+
+  .undo-bar {
+    display: none; align-items: center; gap: 10px; margin-bottom: 16px;
+    padding: 8px 12px; background: var(--warn-bg); border: 1px solid rgba(181,118,44,0.3);
+    border-radius: 8px; font-size: 13px;
+  }
+  .undo-bar.show { display: flex; }
+  .undo-bar button { background: var(--accent); color: #fff; border: none; padding: 4px 10px; font-size: 12px; }
+  .undo-bar .dismiss { background: transparent; color: var(--muted); }
+
+  .font-size-group { display: flex; align-items: center; border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+  .font-size-group button { border: none; border-radius: 0; padding: 4px 10px; background: var(--surface); font-size: 12px; }
+  .font-size-group span { padding: 0 6px; font-size: 11px; color: var(--muted); min-width: 28px; text-align: center; }
+
+  .export-group { position: relative; }
+  .export-menu { display: none; position: absolute; top: 110%; right: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; z-index: 10; min-width: 110px; box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+  .export-menu.open { display: block; }
+  .export-menu button { display: block; width: 100%; text-align: left; border: none; border-radius: 0; padding: 7px 12px; font-size: 13px; }
+
+  .mode-btn { border-radius: 16px; padding: 4px 10px; font-size: 12px; }
+
+  @media (max-width: 768px) {
+    .panels { flex-direction: column; }
+    .canvas-area { flex-direction: column; padding: 12px; }
+    .pdf-controls { padding: 10px 16px; }
+    .sg input[type="range"] { width: 70px; }
+    canvas { max-height: calc(100vh - 360px); }
+    header { padding: 10px 16px; }
+    .tab-bar { padding: 0 16px; }
+    .ocr-section { padding: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <img src="icon.svg" alt="">
+    <h1>Starling<span>椋鸟 · v1.0.0</span></h1>
+  </div>
+  <div class="header-right">
+    <div class="font-size-group">
+      <button onclick="adjustFontSize(-1)" aria-label="减小字号">A-</button>
+      <span id="fontSizeLabel">14px</span>
+      <button onclick="adjustFontSize(1)" aria-label="增大字号">A+</button>
+    </div>
+    <button class="mode-btn" id="modeToggle" onclick="toggleDarkMode()" aria-label="切换深色模式">🌙</button>
+  </div>
+</header>
+
+<div class="tab-bar">
+  <button class="active" onclick="switchTab('pdf')">PDF 调页</button>
+  <button onclick="switchTab('ocr')">换行清理</button>
+  <button onclick="switchTab('footnote')">脚注转换</button>
+</div>
+
+<!-- ==================== PDF TUNER ==================== -->
+<div class="tab-content active" id="tab-pdf">
+  <div class="pdf-workspace">
+    <div class="pdf-landing" id="pdfLanding">
+      <div class="drop-zone" id="dropZone" onclick="document.getElementById('pdfFileInput').click()">
+        <div class="dzlabel">拖入 PDF 或点击选择</div>
+        <p>逐页调整对比度、色阶与倾斜，不影响原始分辨率</p>
+      </div>
+    </div>
+    <div class="pdf-editor" id="pdfEditor">
+      <div class="canvas-area">
+        <div class="canvas-wrap"><div class="clabel">原始</div><canvas id="cvOrig"></canvas></div>
+        <div class="canvas-wrap"><div class="clabel">调整后</div><canvas id="cvOut"></canvas></div>
+      </div>
+      <div class="pdf-controls">
+        <div class="ctrl-row">
+          <div class="page-nav">
+            <button onclick="goPage(-1)">‹</button>
+            <span class="pinfo" id="pageInfo">1 / 1</span>
+            <button onclick="goPage(1)">›</button>
+          </div>
+          <div class="sliders">
+            <span class="slabel">色调</span>
+            <div class="sg"><label>亮度</label><input type="range" min="-60" max="60" value="0" id="slBright" oninput="onSlider()"><span class="sv" id="vBright">0</span></div>
+            <div class="sg"><label>对比度</label><input type="range" min="-60" max="60" value="0" id="slContrast" oninput="onSlider()"><span class="sv" id="vContrast">0</span></div>
+            <div class="sg"><label>Gamma</label><input type="range" min="30" max="300" value="100" id="slGamma" oninput="onSlider()"><span class="sv" id="vGamma">1.00</span></div>
+            <div class="sg"><label>黑场</label><input type="range" min="0" max="80" value="0" id="slBlack" oninput="onSlider()"><span class="sv" id="vBlack">0</span></div>
+            <div class="sg"><label>白场</label><input type="range" min="180" max="255" value="255" id="slWhite" oninput="onSlider()"><span class="sv" id="vWhite">255</span></div>
+            <div class="sg"><label>锐化</label><input type="range" min="0" max="100" value="0" id="slSharpen" oninput="onSlider()"><span class="sv" id="vSharpen">0</span></div>
+          </div>
+          <div class="ctrl-actions">
+            <label class="scope-toggle"><input type="checkbox" id="chkAll"> 全部页</label>
+            <button onclick="undoPdfAction()" id="btnPdfUndo" disabled title="撤销上一步操作">↶ 撤销</button>
+            <button onclick="resetSliders()">重置</button>
+            <button class="primary" onclick="applyToPage()">确认</button>
+          </div>
+        </div>
+        <div class="ctrl-row">
+          <span class="slabel">校正</span>
+          <button onclick="autoDeskew()" id="btnDeskew">自动校正</button>
+          <div class="sg"><label>角度</label><input type="range" min="-50" max="50" value="0" step="1" id="slAngle" oninput="onSlider()"><span class="sv" id="vAngle">0.0°</span></div>
+          <span class="deskew-info" id="deskewInfo"></span>
+          <div style="flex:1"></div>
+          <button onclick="document.getElementById('pdfFileInput').click()">打开其他</button>
+          <button class="primary" id="btnExport" disabled onclick="exportPDF()">导出 PDF</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <input type="file" id="pdfFileInput" accept=".pdf" hidden onchange="loadPDF(this.files[0])">
+</div>
+
+<!-- ==================== OCR CLEANER ==================== -->
+<div class="tab-content" id="tab-ocr">
+  <div class="ocr-section">
+    <div class="undo-bar" id="undoBar">
+      <span id="undoBarText">🗑 已清空</span>
+      <button onclick="undoLastClear()">撤销</button>
+      <button class="dismiss" onclick="dismissUndoBar()">知道了</button>
+    </div>
+    <div class="ocr-topbar">
+      <div>
+        <h2>换行清理</h2>
+        <p class="sub">左边贴 OCR 原始文本，点"清理"，右边生成去掉多余换行、保留自然段的结果。</p>
+        <div class="save-status" id="saveStatus"></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <div class="export-group">
+          <button onclick="toggleExportMenu()">⬇ 导出</button>
+          <div class="export-menu" id="exportMenu">
+            <button onclick="exportAs('txt')">导出 .txt</button>
+            <button onclick="exportAs('md')">导出 .md</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="panels">
+      <div class="panel">
+        <div class="panel-hd">
+          <span>原始文本</span>
+          <span>
+            <button onclick="removeExtraSpaces()">清空格</button>
+            <button onclick="clearFieldWithUndo('ocrInput','原始文本')" aria-label="清空原始文本">🗑</button>
+          </span>
+        </div>
+        <textarea id="ocrInput" placeholder="把OCR复制出来的文本粘贴到这里……"></textarea>
+      </div>
+      <div class="ocr-mid">
+        <button class="primary" onclick="processText()">清理 →</button>
+      </div>
+      <div class="panel">
+        <div class="panel-hd">
+          <span>清理结果</span>
+          <span>
+            <button onclick="copyOcrOutput()">复制</button>
+            <span class="copy-hint" id="copyHint"></span>
+          </span>
+        </div>
+        <div id="ocrOutput" contenteditable="true"><span class="placeholder">清理后的结果会出现在这里……</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== FOOTNOTE ==================== -->
+<div class="tab-content" id="tab-footnote">
+  <div class="ocr-section">
+    <div class="undo-bar" id="undoBarFn">
+      <span id="undoBarFnText">🗑 已清空</span>
+      <button onclick="undoLastClear()">撤销</button>
+      <button class="dismiss" onclick="document.getElementById('undoBarFn').classList.remove('show')">知道了</button>
+    </div>
+    <h2>脚注编号转换</h2>
+    <p class="sub">正文和注释分别贴进两个框，一键生成带层级的 Markdown 脚注。</p>
+    <div class="fn-controls">
+      <label><input type="checkbox" id="useArticlePrefix" checked onchange="toggleArticlePrefixInputs()"> 加篇目前缀</label>
+      <label>篇目号：<input type="text" id="articleNumber" value="1"></label>
+      <label>格式：
+        <select id="numberFormat">
+          <option value="-">1-1</option>
+          <option value=".">1.1</option>
+          <option value="_">1_1</option>
+        </select>
+      </label>
+      <button class="primary" onclick="generateFootnotes()">生成脚注 →</button>
+    </div>
+    <div class="panels">
+      <div class="panel">
+        <div class="panel-hd"><span>正文（含角标）</span><button onclick="clearFieldWithUndo('fnBodyInput','正文')" aria-label="清空正文">🗑</button></div>
+        <textarea id="fnBodyInput" placeholder="把带abcd角标的正文贴到这里……"></textarea>
+      </div>
+      <div class="panel">
+        <div class="panel-hd"><span>注释列表</span><button onclick="clearFieldWithUndo('fnDefInput','注释列表')" aria-label="清空注释列表">🗑</button></div>
+        <textarea id="fnDefInput" placeholder="把a、b、c……开头的注释列表贴到这里……"></textarea>
+      </div>
+    </div>
+    <div class="panel" style="margin-top: 12px; height: auto; min-height: 120px;">
+      <div class="panel-hd">
+        <span>转换结果</span>
+        <span><button onclick="copyFnOutput()">复制</button><span class="copy-hint" id="fnCopyHint"></span></span>
+      </div>
+      <div id="fnOutput" contenteditable="true"><span class="placeholder">生成结果会出现在这里……</span></div>
+    </div>
+    <div class="fn-preview" id="fnPreview"></div>
+    <div class="fn-warning" id="fnWarning"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="loading-bar" id="loadBar" style="width:0"></div>
+
+<!-- ==================== PDF.JS INIT ==================== -->
+<script type="module">
+import * as pdfjsLib from './vendor/pdf.min.mjs';
+pdfjsLib.GlobalWorkerOptions.workerSrc = './vendor/pdf.worker.min.mjs';
+window.pdfjsLib = pdfjsLib;
+</script>
+
+<script>
+// ================================================================
+//  SHARED UTILITIES
+// ================================================================
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2000);
+}
+function setLoading(pct) { document.getElementById('loadBar').style.width = pct + '%'; }
+
+// --- Tab switching ---
+function switchTab(name) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-bar button').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  document.querySelectorAll('.tab-bar button').forEach(b => { if (b.textContent.includes(name === 'pdf' ? 'PDF' : name === 'ocr' ? '换行' : '脚注')) b.classList.add('active'); });
+  localStorage.setItem('starling_tab', name);
+}
+window.switchTab = switchTab;
+
+// --- Dark mode ---
+function toggleDarkMode() {
+  const isDark = document.body.classList.toggle('dark');
+  document.getElementById('modeToggle').textContent = isDark ? '☀️' : '🌙';
+  localStorage.setItem('starling_dark', isDark ? '1' : '0');
+}
+window.toggleDarkMode = toggleDarkMode;
+
+// --- Font size ---
+const FS_MIN = 12, FS_MAX = 22;
+function applyFontSize(s) {
+  document.documentElement.style.setProperty('--content-font-size', s + 'px');
+  document.getElementById('fontSizeLabel').textContent = s + 'px';
+  localStorage.setItem('starling_fs', String(s));
+}
+function adjustFontSize(d) {
+  const c = parseInt(localStorage.getItem('starling_fs') || '14', 10);
+  applyFontSize(Math.min(FS_MAX, Math.max(FS_MIN, c + d)));
+}
+window.adjustFontSize = adjustFontSize;
+
+// ================================================================
+//  PDF TUNER
+// ================================================================
+let pdfDoc = null, origBytes = null, currentPage = 1, totalPages = 0, origImageData = null;
+const pageAdjustments = {};
+const PDF_UNDO_MAX = 20;
+let pdfUndoStack = [];
+
+function pushPdfUndo(action) {
+  pdfUndoStack.push(action);
+  if (pdfUndoStack.length > PDF_UNDO_MAX) pdfUndoStack.shift();
+  updatePdfUndoBtn();
+}
+function updatePdfUndoBtn() {
+  document.getElementById('btnPdfUndo').disabled = pdfUndoStack.length === 0;
+}
+
+// Drop zone
+const dz = document.getElementById('dropZone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('dragover'); const f = e.dataTransfer.files[0]; if (f && f.type === 'application/pdf') loadPDF(f); });
+
+window.loadPDF = async function(file) {
+  if (!file) return;
+  setLoading(10);
+  const buf = await file.arrayBuffer();
+  origBytes = buf.slice(0);
+  try { pdfDoc = await window.pdfjsLib.getDocument({ data: buf }).promise; }
+  catch(e) { toast('PDF 加载失败'); setLoading(0); return; }
+  totalPages = pdfDoc.numPages; currentPage = 1;
+  Object.keys(pageAdjustments).forEach(k => delete pageAdjustments[k]);
+  pdfUndoStack = []; updatePdfUndoBtn();
+  document.getElementById('pdfLanding').classList.add('hidden');
+  document.getElementById('pdfEditor').classList.add('active');
+  document.getElementById('btnExport').disabled = false;
+  setLoading(60);
+  await renderPage(currentPage);
+  setLoading(100); setTimeout(() => setLoading(0), 400);
+  toast(`已加载 ${totalPages} 页`);
+};
+
+async function renderPage(num) {
+  const page = await pdfDoc.getPage(num);
+  const scale = 2, vp = page.getViewport({ scale });
+  const cvO = document.getElementById('cvOrig');
+  cvO.width = vp.width; cvO.height = vp.height;
+  const ctx = cvO.getContext('2d');
+  await page.render({ canvasContext: ctx, viewport: vp }).promise;
+  origImageData = ctx.getImageData(0, 0, vp.width, vp.height);
+  document.getElementById('pageInfo').textContent = `${num} / ${totalPages}`;
+  document.getElementById('deskewInfo').textContent = '';
+  const adj = pageAdjustments[num];
+  if (adj) {
+    document.getElementById('slBright').value = adj.bright;
+    document.getElementById('slContrast').value = adj.contrast;
+    document.getElementById('slGamma').value = adj.gamma;
+    document.getElementById('slBlack').value = adj.black;
+    document.getElementById('slWhite').value = adj.white;
+    document.getElementById('slSharpen').value = adj.sharpen || 0;
+    document.getElementById('slAngle').value = adj.angle;
+  } else { resetSliders(true); }
+  onSlider();
+}
+
+function buildLUT(bright, contrast, gamma, black, white) {
+  const lut = new Uint8Array(256);
+  const cF = (259*(contrast+255))/(255*(259-contrast)), gInv = 1/gamma, range = white - black;
+  for (let i = 0; i < 256; i++) {
+    let v = i;
+    if (range > 0 && (black > 0 || white < 255)) v = ((v - black) / range) * 255;
+    v += bright; v = cF * (v - 128) + 128;
+    v = 255 * Math.pow(Math.max(0, v/255), gInv);
+    lut[i] = Math.max(0, Math.min(255, Math.round(v)));
+  }
+  return lut;
+}
+
+function getParams() {
+  return {
+    bright: +document.getElementById('slBright').value,
+    contrast: +document.getElementById('slContrast').value,
+    gamma: +document.getElementById('slGamma').value / 100,
+    black: +document.getElementById('slBlack').value,
+    white: +document.getElementById('slWhite').value,
+    sharpen: +document.getElementById('slSharpen').value / 100,
+    angle: +document.getElementById('slAngle').value / 10,
+  };
+}
+
+// 4-neighbor Laplacian unsharp mask: out = center + amount * (4*center - N - S - E - W)
+function sharpenImageData(imgData, amount) {
+  const w = imgData.width, h = imgData.height, src = imgData.data;
+  const out = new Uint8ClampedArray(src.length);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      for (let c = 0; c < 3; c++) {
+        const center = src[i + c];
+        const up = y > 0 ? src[i - w * 4 + c] : center;
+        const down = y < h - 1 ? src[i + w * 4 + c] : center;
+        const left = x > 0 ? src[i - 4 + c] : center;
+        const right = x < w - 1 ? src[i + 4 + c] : center;
+        out[i + c] = center + amount * (4 * center - up - down - left - right);
+      }
+      out[i + 3] = src[i + 3];
+    }
+  }
+  return new ImageData(out, w, h);
+}
+
+function applyAdjustments(srcData, params, outCanvas) {
+  const { bright, contrast, gamma, black, white, sharpen, angle } = params;
+  const w = srcData.width, h = srcData.height;
+  const hasColor = (bright !== 0 || contrast !== 0 || gamma !== 1 || black !== 0 || white !== 255);
+  const hasSharpen = sharpen > 0;
+  const hasRotate = Math.abs(angle) > 0.01;
+  outCanvas.width = w; outCanvas.height = h;
+  const ctx = outCanvas.getContext('2d');
+  let imgData = srcData;
+  if (hasColor) {
+    const lut = buildLUT(bright, contrast, gamma, black, white);
+    imgData = new ImageData(new Uint8ClampedArray(srcData.data), w, h);
+    const d = imgData.data;
+    for (let i = 0; i < d.length; i += 4) { d[i] = lut[d[i]]; d[i+1] = lut[d[i+1]]; d[i+2] = lut[d[i+2]]; }
+  }
+  if (hasRotate) {
+    const tmp = document.createElement('canvas'); tmp.width = w; tmp.height = h;
+    tmp.getContext('2d').putImageData(imgData, 0, 0);
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, w, h);
+    ctx.save(); ctx.translate(w/2, h/2); ctx.rotate(angle * Math.PI / 180);
+    ctx.drawImage(tmp, -w/2, -h/2); ctx.restore();
+    if (hasSharpen) ctx.putImageData(sharpenImageData(ctx.getImageData(0, 0, w, h), sharpen), 0, 0);
+  } else {
+    if (hasSharpen) imgData = sharpenImageData(imgData, sharpen);
+    ctx.putImageData(imgData, 0, 0);
+  }
+}
+
+let rafId = 0;
+window.onSlider = function() {
+  const p = getParams();
+  document.getElementById('vBright').textContent = p.bright;
+  document.getElementById('vContrast').textContent = Math.round(p.contrast);
+  document.getElementById('vGamma').textContent = p.gamma.toFixed(2);
+  document.getElementById('vBlack').textContent = p.black;
+  document.getElementById('vWhite').textContent = p.white;
+  document.getElementById('vSharpen').textContent = Math.round(p.sharpen * 100);
+  document.getElementById('vAngle').textContent = p.angle.toFixed(1) + '°';
+  cancelAnimationFrame(rafId);
+  rafId = requestAnimationFrame(() => { if (origImageData) applyAdjustments(origImageData, p, document.getElementById('cvOut')); });
+};
+
+window.autoDeskew = function() {
+  if (!origImageData) return;
+  document.getElementById('btnDeskew').disabled = true;
+  document.getElementById('deskewInfo').textContent = '检测中…';
+  const src = origImageData, factor = Math.max(1, Math.floor(src.width / 600));
+  const sw = Math.floor(src.width / factor), sh = Math.floor(src.height / factor);
+  const gray = new Uint8Array(sw * sh), sd = src.data;
+  for (let y = 0; y < sh; y++) for (let x = 0; x < sw; x++) {
+    const si = ((y*factor)*src.width + (x*factor)) * 4;
+    gray[y*sw+x] = Math.round(0.299*sd[si] + 0.587*sd[si+1] + 0.114*sd[si+2]);
+  }
+  let sum = 0; for (let i = 0; i < gray.length; i++) sum += gray[i];
+  const thresh = sum / gray.length;
+  const bin = new Uint8Array(sw*sh);
+  for (let i = 0; i < gray.length; i++) bin[i] = gray[i] < thresh ? 1 : 0;
+  let bestAngle = 0, bestScore = -1;
+  for (let a10 = -50; a10 <= 50; a10++) {
+    const angle = a10/10, rad = angle*Math.PI/180;
+    const cosA = Math.cos(rad), sinA = Math.sin(rad), cx = sw/2, cy = sh/2;
+    const proj = new Int32Array(sh);
+    for (let y = 0; y < sh; y++) for (let x = 0; x < sw; x++) {
+      if (bin[y*sw+x]) { const ny = Math.round((x-cx)*sinA + (y-cy)*cosA + cy); if (ny >= 0 && ny < sh) proj[ny]++; }
+    }
+    let pS = 0, pS2 = 0;
+    for (let i = 0; i < sh; i++) { pS += proj[i]; pS2 += proj[i]*proj[i]; }
+    const variance = pS2/sh - (pS/sh)*(pS/sh);
+    if (variance > bestScore) { bestScore = variance; bestAngle = angle; }
+  }
+  const prevAngle = document.getElementById('slAngle').value;
+  document.getElementById('slAngle').value = Math.round(bestAngle * 10);
+  document.getElementById('deskewInfo').textContent = `检测到 ${bestAngle.toFixed(1)}°`;
+  document.getElementById('btnDeskew').disabled = false;
+  onSlider();
+  if (prevAngle !== document.getElementById('slAngle').value) {
+    pushPdfUndo({ type: 'sliders', page: currentPage, prev: { ...getRawSliders(), angle: prevAngle } });
+  }
+};
+
+window.goPage = async function(d) { const n = currentPage + d; if (n < 1 || n > totalPages) return; currentPage = n; await renderPage(currentPage); };
+
+function getRawSliders() {
+  return {
+    bright: document.getElementById('slBright').value,
+    contrast: document.getElementById('slContrast').value,
+    gamma: document.getElementById('slGamma').value,
+    black: document.getElementById('slBlack').value,
+    white: document.getElementById('slWhite').value,
+    sharpen: document.getElementById('slSharpen').value,
+    angle: document.getElementById('slAngle').value,
+  };
+}
+function setRawSliders(v) {
+  document.getElementById('slBright').value = v.bright;
+  document.getElementById('slContrast').value = v.contrast;
+  document.getElementById('slGamma').value = v.gamma;
+  document.getElementById('slBlack').value = v.black;
+  document.getElementById('slWhite').value = v.white;
+  document.getElementById('slSharpen').value = v.sharpen || 0;
+  document.getElementById('slAngle').value = v.angle;
+}
+
+window.resetSliders = function(silent) {
+  const prev = getRawSliders();
+  const wasDefault = prev.bright === '0' && prev.contrast === '0' && prev.gamma === '100' && prev.black === '0' && prev.white === '255' && prev.sharpen === '0' && prev.angle === '0';
+
+  setRawSliders({ bright: 0, contrast: 0, gamma: 100, black: 0, white: 255, sharpen: 0, angle: 0 });
+  onSlider();
+
+  if (!silent) {
+    toast('已重置');
+    if (!wasDefault) pushPdfUndo({ type: 'sliders', page: currentPage, prev });
+  }
+};
+
+window.undoPdfAction = async function() {
+  const action = pdfUndoStack.pop();
+  updatePdfUndoBtn();
+  if (!action) return;
+
+  if (action.type === 'sliders') {
+    if (currentPage !== action.page) { currentPage = action.page; await renderPage(currentPage); }
+    setRawSliders(action.prev);
+    onSlider();
+    toast('已撤销');
+  } else if (action.type === 'apply') {
+    if (action.scope === 'all') {
+      for (const [pageStr, adj] of Object.entries(action.prev)) {
+        const page = +pageStr;
+        if (adj === null) delete pageAdjustments[page]; else pageAdjustments[page] = adj;
+      }
+    } else {
+      if (action.prev === null) delete pageAdjustments[action.page]; else pageAdjustments[action.page] = action.prev;
+    }
+    if (action.scope === 'all' || action.page === currentPage) await renderPage(currentPage);
+    toast('已撤销');
+  }
+};
+
+window.applyToPage = function() {
+  const raw = { bright: +document.getElementById('slBright').value, contrast: +document.getElementById('slContrast').value, gamma: +document.getElementById('slGamma').value, black: +document.getElementById('slBlack').value, white: +document.getElementById('slWhite').value, sharpen: +document.getElementById('slSharpen').value, angle: +document.getElementById('slAngle').value };
+  if (document.getElementById('chkAll').checked) {
+    const prev = {};
+    for (let i = 1; i <= totalPages; i++) { prev[i] = pageAdjustments[i] ? { ...pageAdjustments[i] } : null; pageAdjustments[i] = { ...raw }; }
+    pushPdfUndo({ type: 'apply', scope: 'all', prev });
+    toast(`已应用到全部 ${totalPages} 页`);
+  } else {
+    const prev = pageAdjustments[currentPage] ? { ...pageAdjustments[currentPage] } : null;
+    pageAdjustments[currentPage] = raw;
+    pushPdfUndo({ type: 'apply', scope: 'single', page: currentPage, prev });
+    toast(`已确认第 ${currentPage} 页`);
+  }
+};
+
+// Track slider drags as undoable steps: snapshot on press, commit on release.
+const PDF_SLIDER_IDS = ['slBright', 'slContrast', 'slGamma', 'slBlack', 'slWhite', 'slSharpen', 'slAngle'];
+let sliderDragSnapshot = null;
+PDF_SLIDER_IDS.forEach(id => {
+  const el = document.getElementById(id);
+  el.addEventListener('pointerdown', () => { sliderDragSnapshot = getRawSliders(); });
+  el.addEventListener('change', () => {
+    if (!sliderDragSnapshot) return;
+    const now = getRawSliders();
+    if (JSON.stringify(now) !== JSON.stringify(sliderDragSnapshot)) {
+      pushPdfUndo({ type: 'sliders', page: currentPage, prev: sliderDragSnapshot });
+    }
+    sliderDragSnapshot = null;
+  });
+});
+
+// Ctrl+Z / Cmd+Z triggers PDF-tab undo, unless focus is in a text field
+// (where the browser's native text undo should take over instead).
+document.addEventListener('keydown', e => {
+  const isUndoCombo = (e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === 'z' || e.key === 'Z');
+  if (!isUndoCombo) return;
+  const t = e.target;
+  const isTextEditable = t.tagName === 'TEXTAREA' || t.isContentEditable || (t.tagName === 'INPUT' && t.type === 'text');
+  if (isTextEditable) return;
+  if (!document.getElementById('tab-pdf').classList.contains('active')) return;
+  e.preventDefault();
+  undoPdfAction();
+});
+
+window.exportPDF = async function() {
+  if (!pdfDoc || !origBytes) return;
+  const btn = document.getElementById('btnExport');
+  btn.disabled = true; btn.textContent = '导出中…';
+  try {
+    const outPdf = await PDFLib.PDFDocument.create(); const scale = 2;
+    for (let i = 1; i <= totalPages; i++) {
+      setLoading(Math.round((i/totalPages)*90));
+      const page = await pdfDoc.getPage(i), vp = page.getViewport({ scale });
+      const cv = document.createElement('canvas'); cv.width = vp.width; cv.height = vp.height;
+      const ctx = cv.getContext('2d');
+      await page.render({ canvasContext: ctx, viewport: vp }).promise;
+      const adj = pageAdjustments[i];
+      if (adj) {
+        const srcData = ctx.getImageData(0, 0, vp.width, vp.height);
+        const params = { bright: adj.bright, contrast: adj.contrast, gamma: adj.gamma/100, black: adj.black, white: adj.white, sharpen: (adj.sharpen||0)/100, angle: adj.angle/10 };
+        const hasAdj = (params.bright!==0||params.contrast!==0||params.gamma!==1||params.black!==0||params.white!==255||params.sharpen>0||Math.abs(params.angle)>0.01);
+        if (hasAdj) applyAdjustments(srcData, params, cv);
+      }
+      const blob = await new Promise(r => cv.toBlob(r, 'image/jpeg', 0.92));
+      const img = await outPdf.embedJpg(new Uint8Array(await blob.arrayBuffer()));
+      const origVp = page.getViewport({ scale: 1 });
+      outPdf.addPage([origVp.width, origVp.height]).drawImage(img, { x: 0, y: 0, width: origVp.width, height: origVp.height });
+    }
+    const bytes = await outPdf.save();
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+    a.download = 'tuned.pdf'; a.click(); URL.revokeObjectURL(a.href);
+    setLoading(100); setTimeout(() => setLoading(0), 400); toast('导出完成');
+  } catch(e) { console.error(e); toast('导出失败: ' + e.message); }
+  btn.disabled = false; btn.textContent = '导出 PDF';
+};
+
+// ================================================================
+//  OCR CLEANER
+// ================================================================
+const END_PUNCTUATION = ['。','！','？','……','…','”','’','）',')','」','』','—','——','.','!','?','"',"'",'`','´','′','＇'];
+
+function isRealParagraphEnd(line) {
+  const s = line.replace(/\s+$/, '');
+  if (!s) return true;
+  return END_PUNCTUATION.some(p => s.endsWith(p));
+}
+
+function cleanText(raw) {
+  const lines = raw.split(/\r\n|\r|\n/), paragraphs = [];
+  let buf = '';
+  for (const line of lines) {
+    const s = line.trim();
+    if (!s) { if (buf) { paragraphs.push(buf); buf = ''; } continue; }
+    buf += s;
+    if (isRealParagraphEnd(s)) { paragraphs.push(buf); buf = ''; }
+  }
+  if (buf) paragraphs.push(buf);
+  return paragraphs.join('\n\n');
+}
+
+let lastCleared = null;
+const FN_FIELD_IDS = ['fnBodyInput', 'fnDefInput'];
+function barIdFor(id) { return FN_FIELD_IDS.includes(id) ? 'undoBarFn' : 'undoBar'; }
+function showUndoBar() {
+  const barId = barIdFor(lastCleared.id);
+  const bar = document.getElementById(barId);
+  document.getElementById(barId === 'undoBarFn' ? 'undoBarFnText' : 'undoBarText').textContent = `🗑 已清空"${lastCleared.label}"`;
+  bar.classList.add('show');
+}
+window.dismissUndoBar = () => document.getElementById('undoBar').classList.remove('show');
+window.undoLastClear = function() {
+  if (!lastCleared) return;
+  const el = document.getElementById(lastCleared.id);
+  el.value = lastCleared.value;
+  document.getElementById(barIdFor(lastCleared.id)).classList.remove('show');
+  lastCleared = null;
+  el.dispatchEvent(new Event('input'));
+};
+
+window.clearFieldWithUndo = function(id, label) {
+  const el = document.getElementById(id);
+  if (!el.value) return;
+  lastCleared = { id, value: el.value, label };
+  el.value = '';
+  showUndoBar();
+  el.dispatchEvent(new Event('input'));
+};
+
+window.removeExtraSpaces = function() {
+  const input = document.getElementById('ocrInput'), before = input.value;
+  const cjk = '[\\u4e00-\\u9fff\\u3000-\\u303f\\uff00-\\uffef]';
+  const hs = '[ \\t\\u3000]';
+  input.value = input.value.replace(new RegExp(`(${cjk})${hs}+(?=${cjk})`, 'gu'), '$1');
+  if (input.value !== before) { lastCleared = { id: 'ocrInput', value: before, label: '清空格前' }; showUndoBar(); }
+};
+
+window.processText = function() {
+  const raw = document.getElementById('ocrInput').value;
+  const cleaned = cleanText(raw);
+  const out = document.getElementById('ocrOutput');
+  out.innerHTML = '';
+  const paras = cleaned.split('\n\n').filter(p => p);
+  if (!paras.length) { out.innerHTML = '<span class="placeholder">清理后的结果会出现在这里……</span>'; return; }
+  for (const para of paras) { const p = document.createElement('p'); p.textContent = para; out.appendChild(p); }
+};
+
+window.copyOcrOutput = function() {
+  const ps = Array.from(document.getElementById('ocrOutput').querySelectorAll('p')).map(p => p.innerText.trim()).filter(Boolean);
+  if (!ps.length) return;
+  navigator.clipboard.writeText(ps.join('\n\n')).then(() => {
+    const h = document.getElementById('copyHint'); h.textContent = '已复制'; h.className = 'copy-hint success';
+    setTimeout(() => { h.textContent = ''; h.className = 'copy-hint'; }, 1500);
+  });
+};
+
+// Export
+window.toggleExportMenu = () => document.getElementById('exportMenu').classList.toggle('open');
+document.addEventListener('click', e => { if (!e.target.closest('.export-group')) document.getElementById('exportMenu').classList.remove('open'); });
+window.exportAs = function(fmt) {
+  const ps = Array.from(document.getElementById('ocrOutput').querySelectorAll('p')).map(p => p.innerText.trim()).filter(Boolean);
+  if (!ps.length) return;
+  const blob = new Blob([ps.join('\n\n')], { type: (fmt === 'md' ? 'text/markdown' : 'text/plain') + ';charset=utf-8' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `清理结果_${new Date().toISOString().slice(0,10)}.${fmt}`; a.click(); URL.revokeObjectURL(a.href);
+  document.getElementById('exportMenu').classList.remove('open');
+};
+
+// Auto-save
+const SK_I = 'starling_ocr_input', SK_O = 'starling_ocr_output';
+const SK_FN_BODY = 'starling_fn_body', SK_FN_DEF = 'starling_fn_def';
+let saveTimer = null;
+function scheduleSave() { clearTimeout(saveTimer); saveTimer = setTimeout(doSave, 500); }
+function doSave() {
+  localStorage.setItem(SK_I, document.getElementById('ocrInput').value);
+  const out = document.getElementById('ocrOutput');
+  if (!out.querySelector('.placeholder')) localStorage.setItem(SK_O, out.innerHTML);
+  const t = new Date().toLocaleTimeString('zh-CN', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+  document.getElementById('saveStatus').textContent = `已自动保存 · ${t}`;
+}
+
+let fnSaveTimer = null;
+function scheduleFnSave() { clearTimeout(fnSaveTimer); fnSaveTimer = setTimeout(doFnSave, 500); }
+function doFnSave() {
+  localStorage.setItem(SK_FN_BODY, document.getElementById('fnBodyInput').value);
+  localStorage.setItem(SK_FN_DEF, document.getElementById('fnDefInput').value);
+}
+
+// Active line highlight
+function updateActiveLine() {
+  const out = document.getElementById('ocrOutput');
+  out.querySelectorAll('p.active-line').forEach(p => p.classList.remove('active-line'));
+  const sel = window.getSelection(); if (!sel.rangeCount) return;
+  let node = sel.getRangeAt(0).startContainer; if (node.nodeType === 3) node = node.parentNode;
+  const p = node.closest ? node.closest('p') : null;
+  if (p && out.contains(p)) p.classList.add('active-line');
+}
+
+// ================================================================
+//  FOOTNOTE CONVERTER
+// ================================================================
+window.toggleArticlePrefixInputs = function() {
+  const use = document.getElementById('useArticlePrefix').checked;
+  document.getElementById('articleNumber').disabled = !use;
+  document.getElementById('numberFormat').disabled = !use;
+};
+
+function parseFootnoteDefs(rawText) {
+  const flat = rawText.replace(/\s+/g, '');
+  if (!flat) return [];
+  const prec = '\\p{P}|\\p{S}', follow = '[\\u4e00-\\u9fff\\p{P}\\p{S}]';
+  const marker = '(?:[a-z]|[^\\u4e00-\\u9fff\\d][0-9])';
+  const re = new RegExp(`(^|${prec})(${marker})(?=${follow})`, 'gu');
+  const starts = []; let m;
+  while ((m = re.exec(flat)) !== null) {
+    const ts = m.index + m[1].length;
+    starts.push({ tokenStart: ts, tokenEnd: ts + m[2].length, token: m[2] });
+  }
+  const entries = [];
+  for (let i = 0; i < starts.length; i++) {
+    const cs = starts[i].tokenEnd, ce = i+1 < starts.length ? starts[i+1].tokenStart : flat.length;
+    const content = flat.slice(cs, ce).trim();
+    if (content) entries.push({ token: starts[i].token, content });
+  }
+  return entries;
+}
+
+function replaceBodyMarkers(bodyText, entries, articleNumber, separator, useArticlePrefix) {
+  const cjkP = '[\\u4e00-\\u9fff\\p{P}\\p{S}]', followP = '[\\u4e00-\\u9fff\\p{P}\\p{S}\\s]';
+  const marker = '(?:[a-z]|[^\\u4e00-\\u9fff\\s\\d][0-9])';
+  const pattern = new RegExp(`(${cjkP})\\s*(${marker})(?=${followP}|$)`, 'gu');
+  let pointer = 0; const tokenMismatches = []; let matchedCount = 0;
+  const result = bodyText.replace(pattern, (whole, pre, token) => {
+    if (pointer >= entries.length) return whole;
+    const entry = entries[pointer];
+    if (entry.token !== token) tokenMismatches.push({ position: pointer+1, bodyToken: token, defToken: entry.token });
+    const idx = pointer + 1;
+    const tag = useArticlePrefix ? `${articleNumber}${separator}${idx}` : `${idx}`;
+    pointer++; matchedCount++;
+    return `${pre}[^${tag}]`;
+  });
+  return { result, matchedCount, totalEntries: entries.length, tokenMismatches };
+}
+
+function preprocessBodyText(text) {
+  const cjk = '[\\u4e00-\\u9fff\\u3000-\\u303f\\uff00-\\uffef]', hs = '[ \\t\\u3000]';
+  let c = text.replace(new RegExp(`(${cjk})${hs}+(?=${cjk})`, 'gu'), '$1');
+  c = c.split(/\r\n|\r|\n/).map(l => l.replace(/[ \t]+$/, '')).join('\n');
+  return c.replace(/\n{3,}/g, '\n\n');
+}
+
+window.generateFootnotes = function() {
+  const bodyOrig = document.getElementById('fnBodyInput').value;
+  const defsRaw = document.getElementById('fnDefInput').value;
+  const useAP = document.getElementById('useArticlePrefix').checked;
+  const artNum = document.getElementById('articleNumber').value.trim() || '1';
+  const sep = document.getElementById('numberFormat').value;
+  const warn = document.getElementById('fnWarning'), prev = document.getElementById('fnPreview'), out = document.getElementById('fnOutput');
+
+  if (!bodyOrig.trim() || !defsRaw.trim()) { warn.textContent = '正文和注释列表都要贴内容。'; warn.classList.add('show'); prev.classList.remove('show'); return; }
+
+  const bodyRaw = preprocessBodyText(bodyOrig);
+  if (bodyRaw !== bodyOrig) {
+    lastCleared = { id: 'fnBodyInput', value: bodyOrig, label: '格式整理前的正文' };
+    document.getElementById('fnBodyInput').value = bodyRaw;
+    showUndoBar();
+  }
+
+  const entries = parseFootnoteDefs(defsRaw);
+  if (!entries.length) { warn.textContent = '没能识别出注释条目。'; warn.classList.add('show'); prev.classList.remove('show'); return; }
+
+  const { result: newBody, matchedCount, totalEntries, tokenMismatches } = replaceBodyMarkers(bodyRaw, entries, artNum, sep, useAP);
+  const defLines = entries.map((e, i) => { const idx = i+1; const tag = useAP ? `${artNum}${sep}${idx}` : `${idx}`; return `[^${tag}]: ${e.content}`; });
+  out.innerText = newBody.trim() + '\n\n' + defLines.join('\n');
+
+  const ok = matchedCount === totalEntries && tokenMismatches.length === 0;
+  renderFnPreview(entries, matchedCount, totalEntries, tokenMismatches, ok);
+
+  const warnings = [];
+  if (matchedCount !== totalEntries) warnings.push(`正文替换 ${matchedCount} 处，注释 ${totalEntries} 条，数量不一致。`);
+  if (tokenMismatches.length > 0) {
+    const detail = tokenMismatches.slice(0,5).map(m => `第${m.position}处（正文${m.bodyToken}，注释${m.defToken}）`).join('、');
+    warnings.push(`符号不一致：${detail}——已按顺序对应替换，建议核对。`);
+  }
+  if (warnings.length) { warn.textContent = warnings.join(' '); warn.classList.add('show'); } else { warn.classList.remove('show'); }
+};
+
+function renderFnPreview(entries, matchedCount, totalEntries, tokenMismatches, ok) {
+  const prev = document.getElementById('fnPreview');
+  const mp = new Set(tokenMismatches.map(m => m.position));
+  const summary = ok ? `✓ ${totalEntries} 条注释，${matchedCount} 处匹配，完全对齐。` : `⚠ ${totalEntries} 条注释，${matchedCount} 处匹配${tokenMismatches.length ? `，${tokenMismatches.length} 处不一致` : ''}。`;
+  const rows = entries.map((e, i) => {
+    const sn = e.content.length > 16 ? e.content.slice(0,16) + '…' : e.content;
+    return `<tr class="${mp.has(i+1)?'flagged':''}"><td>${i+1}</td><td>${e.token}</td><td>${sn}</td></tr>`;
+  }).join('');
+  prev.innerHTML = `<div class="fn-preview-summary ${ok?'ok':'warn'}" onclick="this.parentElement.classList.toggle('expanded')">${summary} <span class="fn-preview-toggle">展开 ▾</span></div><div class="fn-preview-detail"><table><thead><tr><th>#</th><th>标记</th><th>内容</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  prev.classList.add('show'); prev.classList.remove('expanded');
+}
+
+window.copyFnOutput = function() {
+  const text = document.getElementById('fnOutput').innerText.trim();
+  if (!text) return;
+  navigator.clipboard.writeText(text).then(() => {
+    const h = document.getElementById('fnCopyHint'); h.textContent = '已复制'; h.className = 'copy-hint success';
+    setTimeout(() => { h.textContent = ''; h.className = 'copy-hint'; }, 1500);
+  });
+};
+
+// ================================================================
+//  INIT
+// ================================================================
+window.addEventListener('DOMContentLoaded', () => {
+  // Restore preferences
+  if (localStorage.getItem('starling_dark') === '1') { document.body.classList.add('dark'); document.getElementById('modeToggle').textContent = '☀️'; }
+  const fs = localStorage.getItem('starling_fs'); applyFontSize(fs ? parseInt(fs, 10) : 14);
+  const tab = localStorage.getItem('starling_tab'); if (tab) switchTab(tab);
+
+  // Restore OCR state
+  const si = localStorage.getItem(SK_I), so = localStorage.getItem(SK_O);
+  if (si) document.getElementById('ocrInput').value = si;
+  if (so) document.getElementById('ocrOutput').innerHTML = so;
+  if (si || so) document.getElementById('saveStatus').textContent = '已恢复上次编辑';
+
+  const ocrIn = document.getElementById('ocrInput'), ocrOut = document.getElementById('ocrOutput');
+  ocrIn.addEventListener('input', scheduleSave);
+  ocrOut.addEventListener('input', scheduleSave);
+  ocrOut.addEventListener('input', updateActiveLine);
+  ocrOut.addEventListener('click', updateActiveLine);
+  ocrOut.addEventListener('keyup', updateActiveLine);
+
+  // Restore footnote state
+  const fb = localStorage.getItem(SK_FN_BODY), fd = localStorage.getItem(SK_FN_DEF);
+  if (fb) document.getElementById('fnBodyInput').value = fb;
+  if (fd) document.getElementById('fnDefInput').value = fd;
+
+  const fnBody = document.getElementById('fnBodyInput'), fnDef = document.getElementById('fnDefInput');
+  fnBody.addEventListener('input', scheduleFnSave);
+  fnDef.addEventListener('input', scheduleFnSave);
+});
+
+window.addEventListener('beforeunload', () => { doSave(); doFnSave(); });
+
+// PWA registration
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>
