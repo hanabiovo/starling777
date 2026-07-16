@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#6b7c6e">
 <title>Starling · 椋鸟</title>
+<meta name="description" content="PDF 调页 · OCR 换行清理 · 脚注转换">
+<meta property="og:title" content="Starling · 椋鸟">
+<meta property="og:description" content="PDF 调页 · OCR 换行清理 · 脚注转换">
+<meta property="og:type" content="website">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <script src="vendor/pdf-lib.min.js" defer></script>
@@ -317,7 +321,7 @@
 <div class="tab-content" id="tab-ocr">
   <div class="ocr-section">
     <div class="undo-bar" id="undoBar">
-      <span id="undoBarText">🗑 已清空</span>
+      <span id="undoBarText"></span>
       <button onclick="undoLastClear()">撤销</button>
       <button class="dismiss" onclick="dismissUndoBar()">知道了</button>
     </div>
@@ -369,7 +373,7 @@
 <div class="tab-content" id="tab-footnote">
   <div class="ocr-section">
     <div class="undo-bar" id="undoBarFn">
-      <span id="undoBarFnText">🗑 已清空</span>
+      <span id="undoBarFnText"></span>
       <button onclick="undoLastClear()">撤销</button>
       <button class="dismiss" onclick="document.getElementById('undoBarFn').classList.remove('show')">知道了</button>
     </div>
