@@ -1,9 +1,12 @@
-const CACHE_NAME = 'starling-v1.0.0';
+const CACHE_NAME = 'starling-v1.0.1';
 const ASSETS = [
   './',
   './index.html',
   './manifest.json',
-  './icon.svg',
+  './icons/favicon-32.png',
+  './icons/icon-192.png',
+  './icons/icon-512.png',
+  './icons/apple-touch-icon.png',
   './vendor/pdf.min.mjs',
   './vendor/pdf.worker.min.mjs',
   './vendor/pdf-lib.min.js',
